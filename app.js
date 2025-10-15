@@ -1,13 +1,16 @@
+// Math Learning App - Fixed Version
 class MathApp {
   constructor() {
-    // localStorage simulation for comprehensive data persistence
+    console.log('🎓 MathApp constructor called');
+    
+    // In-memory data storage (localStorage simulation blocked in sandbox)
     this.storageData = {
       mathApp_userData: null,
       mathApp_settings: null,
       mathApp_version: '1.0'
     };
     
-    // In-memory data storage with localStorage simulation
+    // Initialize core properties with proper validation
     this.users = [];
     this.currentUser = null;
     this.currentLanguage = 'he';
@@ -418,28 +421,91 @@ class MathApp {
     
     this.currentScreen = 'user-selection';
     
+    console.log('MathApp constructor completed, starting initialization...');
     this.init();
   }
   
-  init() {
-    this.showLoadingIndicator();
+  validateMethods() {
+    console.log('Validating methods...');
     
-    setTimeout(() => {
-      this.detectLanguage();
-      this.bindEvents();
-      this.loadUsersFromStorage();
-      this.showScreen('user-selection');
-      this.renderUserSelection();
-      this.renderAvatarSelection();
-      this.updateLanguage();
-      
-      this.hideLoadingIndicator();
-      
-      // Show welcome message if returning user
-      if (this.users.length > 0) {
-        this.showDataRestoredMessage();
+    const requiredMethods = [
+      'saveToStorage', 'getFromStorage', 'loadUsersFromStorage',
+      'createUser', 'createUserWithFullStructure', 'bindEvents',
+      'showScreen', 'updateLanguage', 'translate'
+    ];
+    
+    const missingMethods = requiredMethods.filter(method => {
+      const exists = typeof this[method] === 'function';
+      if (!exists) {
+        console.error(`⚠️ Method ${method} is not defined or not a function`);
       }
-    }, 500); // Simulate loading time
+      return !exists;
+    });
+    
+    if (missingMethods.length > 0) {
+      throw new Error(`Missing required methods: ${missingMethods.join(', ')}`);
+    }
+    
+    console.log('✅ All required methods validated successfully');
+  }
+  
+  init() {
+    console.log('Initializing Math App...');
+    
+    try {
+      this.showLoadingIndicator();
+      
+      setTimeout(() => {
+        try {
+          console.log('Starting initialization sequence...');
+          
+          this.detectLanguage();
+          console.log('Language detected:', this.currentLanguage);
+          
+          this.bindEvents();
+          console.log('Events bound successfully');
+          
+          this.loadUsersFromStorage();
+          console.log('Users loaded, count:', this.users.length);
+          
+          this.showScreen('user-selection');
+          console.log('Screen shown: user-selection');
+          
+          this.renderUserSelection();
+          console.log('User selection rendered');
+          
+          this.renderAvatarSelection();
+          console.log('Avatar selection rendered');
+          
+          this.updateLanguage();
+          console.log('Language updated');
+          
+          this.hideLoadingIndicator();
+          console.log('Loading indicator hidden');
+          
+          // Show welcome message if returning user
+          if (this.users.length > 0) {
+            this.showDataRestoredMessage();
+            console.log('Welcome message shown for returning user');
+          }
+          
+          console.log('✅ Math App initialized successfully!');
+          
+        } catch (error) {
+          console.error('⚠️ Error during initialization:', error);
+          this.hideLoadingIndicator();
+          
+          const errorMsg = this.currentLanguage === 'he' ? 'שגיאה באיניציאליזציה' :
+                          this.currentLanguage === 'ru' ? 'Ошибка инициализации' :
+                          'Initialization error';
+          alert(errorMsg + ': ' + error.message);
+        }
+      }, 500); // Simulate loading time
+      
+    } catch (error) {
+      console.error('⚠️ Critical initialization error:', error);
+      alert('Critical error starting the app: ' + error.message);
+    }
   }
   
   showLoadingIndicator() {
@@ -523,13 +589,53 @@ class MathApp {
     try {
       const savedData = this.getFromStorage('mathApp_userData');
       if (savedData && savedData.users && Array.isArray(savedData.users)) {
-        this.users = savedData.users;
+        // Validate and clean each user object
+        this.users = savedData.users.filter(user => {
+          return user && user.id && user.name;
+        }).map(user => {
+          // Ensure all required properties exist with fallbacks
+          return {
+            ...user,
+            id: user.id || Date.now().toString(),
+            createdDate: user.createdDate || user.createdAt || new Date().toISOString(),
+            language: user.language || 'he',
+            currentDifficulty: user.currentDifficulty || user.difficultyPreference || 'easy',
+            stats: user.stats || {
+              totalExercises: 0,
+              totalCorrect: 0,
+              currentStreak: 0,
+              bestStreak: 0,
+              daysPracticed: 0,
+              lastPracticeDate: null
+            },
+            exerciseStats: user.exerciseStats || {
+              multiplication: { total: 0, correct: 0 },
+              subtraction: { total: 0, correct: 0 },
+              division: { total: 0, correct: 0 },
+              addition: { total: 0, correct: 0 }
+            },
+            dailyProgress: user.dailyProgress || {
+              date: this.getTodayString(),
+              multiplication: 0,
+              subtraction: 0,
+              division: 0,
+              addition: 0
+            },
+            achievements: user.achievements || [],
+            difficultyStats: user.difficultyStats || {
+              easy: { total: 0, correct: 0 },
+              medium: { total: 0, correct: 0 },
+              hard: { total: 0, correct: 0 }
+            },
+            exerciseHistory: user.exerciseHistory || []
+          };
+        });
         
         // Restore last active user if exists
         if (savedData.appSettings && savedData.appSettings.lastActiveUser) {
-          this.currentUser = this.users.find(u => u.id === savedData.appSettings.lastActiveUser);
+          this.currentUser = this.users.find(u => u && u.id === savedData.appSettings.lastActiveUser);
           if (this.currentUser) {
-            this.currentDifficulty = this.currentUser.difficultyPreference || 'easy';
+            this.currentDifficulty = this.currentUser.difficultyPreference || this.currentUser.currentDifficulty || 'easy';
           }
         }
         
@@ -548,9 +654,31 @@ class MathApp {
   }
   
   bindEvents() {
-    // User selection events
-    document.getElementById('create-user-btn').addEventListener('click', () => this.createUser());
-    document.getElementById('switch-user-btn').addEventListener('click', () => this.showScreen('user-selection'));
+    console.log('Binding events...');
+    
+    // User selection events with proper error handling
+    const createUserBtn = document.getElementById('create-user-btn');
+    if (createUserBtn) {
+      createUserBtn.addEventListener('click', (e) => {
+        console.log('Create user button clicked');
+        try {
+          this.createUser();
+        } catch (error) {
+          console.error('❌ Error in createUser:', error);
+          const errorMsg = this.currentLanguage === 'he' ? 'שגיאה ביצירת משתמש' :
+                          this.currentLanguage === 'ru' ? 'Ошибка создания пользователя' :
+                          'Error creating user';
+          alert(errorMsg + ': ' + error.message);
+        }
+      });
+    } else {
+      console.warn('⚠️ Create user button not found');
+    }
+    
+    const switchUserBtn = document.getElementById('switch-user-btn');
+    if (switchUserBtn) {
+      switchUserBtn.addEventListener('click', () => this.showScreen('user-selection'));
+    }
     
     // Dashboard events
     document.querySelectorAll('.exercise-btn').forEach(btn => {
@@ -594,7 +722,12 @@ class MathApp {
         e.target.classList.add('selected');
       }
       if (e.target.classList.contains('user-card')) {
-        this.selectUser(parseInt(e.target.dataset.userId));
+        const userId = e.target.dataset.userId;
+        if (userId) {
+          this.selectUser(userId);
+        } else {
+          console.error('❌ User ID not found on user card');
+        }
       }
     });
   }
@@ -619,9 +752,14 @@ class MathApp {
   
   renderUserSelection() {
     const container = document.getElementById('existing-users');
+    if (!container) {
+      console.error('❌ existing-users container not found');
+      return;
+    }
+    
     container.innerHTML = '';
     
-    if (this.users.length === 0) {
+    if (!this.users || this.users.length === 0) {
       // Show "no users" message when starting fresh
       const noUsersMessage = document.createElement('div');
       noUsersMessage.className = 'no-users-message';
@@ -650,13 +788,14 @@ class MathApp {
       container.appendChild(noUsersMessage);
     } else {
       // Show existing users
-      this.users.forEach(user => {
+      this.users.filter(user => user && user.id && user.name).forEach(user => {
         const userCard = document.createElement('div');
         userCard.className = 'user-card';
         userCard.dataset.userId = user.id;
         
-        const successRate = user.stats.totalExercises > 0 
-          ? Math.round((user.stats.totalCorrect / user.stats.totalExercises) * 100)
+        const userStats = user.stats || { totalExercises: 0, totalCorrect: 0, currentStreak: 0 };
+        const successRate = userStats.totalExercises > 0 
+          ? Math.round((userStats.totalCorrect / userStats.totalExercises) * 100)
           : 0;
         
         const streakText = this.currentLanguage === 'he' ? 'רצף' :
@@ -674,7 +813,7 @@ class MathApp {
           <div class="user-name">${user.name}</div>
           <div class="user-stats">
             ${successText}: ${successRate}%<br>
-            ${streakText}: ${user.stats.currentStreak} ${daysText}
+            ${streakText}: ${userStats.currentStreak || 0} ${daysText}
           </div>
         `;
         
@@ -696,39 +835,85 @@ class MathApp {
   }
   
   createUser() {
+    console.log('Creating user...');
+    
     const nameInput = document.getElementById('new-user-name');
     const selectedAvatar = document.querySelector('.avatar-option.selected');
     
-    if (!nameInput.value.trim()) {
-      alert(this.translate('enter_name'));
+    if (!nameInput || !nameInput.value.trim()) {
+      const enterNameMsg = this.currentLanguage === 'he' ? 'אנא הכנס שם!' : 
+                          this.currentLanguage === 'ru' ? 'Пожалуйста, введите имя!' : 
+                          'Please enter a name!';
+      alert(enterNameMsg);
       return;
     }
     
     if (!selectedAvatar) {
-      alert('Please choose an avatar!');
+      const chooseAvatarMsg = this.currentLanguage === 'he' ? 'אנא בחר אווטר!' : 
+                             this.currentLanguage === 'ru' ? 'Пожалуйста, выберите аватар!' : 
+                             'Please choose an avatar!';
+      alert(chooseAvatarMsg);
       return;
     }
     
-    const newUser = this.createUserWithFullStructure(
-      nameInput.value.trim(),
-      selectedAvatar.textContent
-    );
-    
-    this.users.push(newUser);
-    this.saveToLocalStorage(); // Save immediately after creating user
-    this.selectUser(newUser.id);
-    
-    // Clear form
-    nameInput.value = '';
-    document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+    try {
+      const userName = nameInput.value.trim();
+      const userAvatar = selectedAvatar.textContent;
+      
+      if (!userName || !userAvatar) {
+        throw new Error('User name and avatar are required');
+      }
+      
+      const newUser = this.createUserWithFullStructure(userName, userAvatar);
+      
+      if (!newUser || !newUser.id) {
+        throw new Error('Failed to create user object with required properties');
+      }
+      
+      this.users.push(newUser);
+      
+      // Save user data immediately
+      this.saveToStorage();
+      
+      // Show success message
+      const successMsg = this.currentLanguage === 'he' ? 'משתמש נוצר בהצלחה!' :
+                        this.currentLanguage === 'ru' ? 'Пользователь успешно создан!' :
+                        'User created successfully!';
+      console.log(successMsg, 'User ID:', newUser.id);
+      
+      this.selectUser(newUser.id);
+      
+      // Clear form
+      nameInput.value = '';
+      document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+      
+    } catch (error) {
+      const errorMsg = this.currentLanguage === 'he' ? 'שגיאה ביצירת משתמש:' :
+                      this.currentLanguage === 'ru' ? 'Ошибка создания пользователя:' :
+                       'Error creating user:';
+      console.error(errorMsg, error);
+      alert(errorMsg + ' ' + error.message);
+    }
   }
   
   selectUser(userId) {
-    this.currentUser = this.users.find(user => user.id === userId);
-    if (this.currentUser) {
+    if (!userId) {
+      console.error('User ID is required');
+      return;
+    }
+    
+    this.currentUser = this.users.find(user => user && user.id === userId);
+    if (this.currentUser && this.currentUser.id) {
       this.currentDifficulty = this.currentUser.difficultyPreference || 'easy';
       this.saveToStorage(); // Save last active user
       this.showScreen('dashboard');
+      console.log('✅ User selected successfully:', this.currentUser.name);
+    } else {
+      console.error('❌ User not found or invalid:', userId);
+      const errorMsg = this.currentLanguage === 'he' ? 'משתמש לא נמצא' :
+                      this.currentLanguage === 'ru' ? 'Пользователь не найден' :
+                      'User not found';
+      alert(errorMsg);
     }
   }
   
@@ -1205,9 +1390,10 @@ class MathApp {
   
   getDifficultyBasedMessage(type) {
     // For addition exercises, use addition-specific messages if available
-    let messageSource = this.currentExercise.type === 'addition' 
-      ? this.encouragingMessagesByDifficulty.addition
-      : this.encouragingMessagesByDifficulty[this.currentDifficulty];
+    // let messageSource = this.currentExercise.type === 'addition' 
+    //   ? this.encouragingMessagesByDifficulty.addition
+    //   : this.encouragingMessagesByDifficulty[this.currentDifficulty];
+      let messageSource = this.encouragingMessagesByDifficulty[this.currentDifficulty];
     
     const messages = messageSource[type][this.currentLanguage];
     return messages[Math.floor(Math.random() * messages.length)];
@@ -1694,6 +1880,8 @@ class MathApp {
   // since browser storage APIs are blocked in the sandboxed environment
   
   saveToStorage() {
+    console.log('Saving data to storage...');
+    
     // Debounce saves to prevent performance issues
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
@@ -1701,10 +1889,21 @@ class MathApp {
     
     this.saveTimeout = setTimeout(() => {
       try {
-        const dataToSave = {
-          users: this.users.map(user => ({
-            ...user,
-            createdDate: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
+        // Validate users array before processing
+        const validatedUsers = (this.users || []).map(user => {
+          // Ensure user object exists and has all required properties
+          if (!user) {
+            console.warn('⚠️ Null user found, skipping');
+            return null;
+          }
+          
+          return {
+            id: user.id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            name: user.name || '',
+            avatar: user.avatar || '🐱',
+            createdDate: user.createdDate || user.createdAt?.toISOString?.() || new Date().toISOString(),
+            language: user.language || 'he',
+            currentDifficulty: user.currentDifficulty || user.difficultyPreference || 'easy',
             statistics: {
               totalExercises: user.stats?.totalExercises || 0,
               correctAnswers: user.stats?.totalCorrect || 0,
@@ -1715,36 +1914,45 @@ class MathApp {
             },
             exerciseHistory: user.exerciseHistory || [],
             dailyProgress: this.formatDailyProgress(user.dailyProgress),
-            achievements: user.achievements?.map(achievementId => ({
+            achievements: (user.achievements || []).map(achievementId => ({
               id: achievementId,
               unlockedDate: new Date().toISOString().split('T')[0],
               progress: 100
-            })) || [],
+            })),
             preferences: {
-              difficulty: user.difficultyPreference || 'easy',
-              language: this.currentLanguage,
+              difficulty: user.difficultyPreference || user.currentDifficulty || 'easy',
+              language: user.language || this.currentLanguage,
               soundEnabled: true,
               theme: 'default'
             }
-          })),
+          };
+        }).filter(user => user !== null); // Remove null entries
+        
+        const dataToSave = {
+          users: validatedUsers,
           appSettings: {
-            lastActiveUser: this.currentUser ? this.currentUser.id : null,
+            lastActiveUser: this.currentUser && this.currentUser.id ? this.currentUser.id : null,
             defaultLanguage: this.currentLanguage
           }
         };
         
-        // Simulate persistent storage setItem
+        // Store data in memory (simulating persistent storage)
         this.storageData.mathApp_userData = JSON.stringify(dataToSave);
         this.storageData.mathApp_settings = JSON.stringify({
           language: this.currentLanguage,
           lastSaveDate: new Date().toISOString()
         });
         
-        console.log('✅ Data saved successfully');
+        console.log('✅ Data saved successfully to simulated storage');
+        console.log('Saved users:', validatedUsers.length);
         this.showDataSavedIndicator();
         
       } catch (error) {
         console.error('⚠️ Error saving data:', error);
+        const errorMsg = this.currentLanguage === 'he' ? 'שגיאה בשמירת נתונים' :
+                        this.currentLanguage === 'ru' ? 'Ошибка сохранения данных' :
+                        'Data saving error';
+        alert(errorMsg + ': ' + error.message);
         this.handleStorageError(error);
       }
     }, this.saveDebounceMs);
@@ -1752,18 +1960,33 @@ class MathApp {
   
   getFromStorage(key) {
     try {
-      // Simulate localStorage.getItem
+      console.log('Reading from storage:', key);
+      
+      if (!key || !this.storageData) {
+        console.warn('⚠️ Invalid key or storage data');
+        return null;
+      }
+      
+      // Retrieve from in-memory storage simulation
       const data = this.storageData[key];
-      return data ? JSON.parse(data) : null;
+      const result = data ? JSON.parse(data) : null;
+      console.log('Retrieved from storage:', result ? 'data found' : 'no data');
+      return result;
     } catch (error) {
       console.error('⚠️ Error reading from storage:', error);
+      const errorMsg = this.currentLanguage === 'he' ? 'שגיאה בטעינת נתונים' :
+                      this.currentLanguage === 'ru' ? 'Ошибка загрузки данных' :
+                       'Data loading error';
+      console.error(errorMsg + ':', error);
       return null;
     }
   }
   
   calculateAverageTime(user) {
-    if (!user.exerciseHistory || user.exerciseHistory.length === 0) return 0;
-    const totalTime = user.exerciseHistory.reduce((sum, exercise) => sum + (exercise.timeSpent || 0), 0);
+    if (!user || !user.exerciseHistory || user.exerciseHistory.length === 0) return 0;
+    const totalTime = user.exerciseHistory.reduce((sum, exercise) => {
+      return sum + (exercise && exercise.timeSpent ? exercise.timeSpent : 0);
+    }, 0);
     return Math.round(totalTime / user.exerciseHistory.length);
   }
   
@@ -1778,11 +2001,20 @@ class MathApp {
       }
     };
   }
+
   
   validateAndCleanupData() {
     // Validate and clean up user data structure
-    this.users = this.users.filter(user => {
-      if (!user.id || !user.name) return false;
+    this.users = (this.users || []).filter(user => {
+      if (!user || !user.id || !user.name) {
+        console.warn('⚠️ Invalid user found, removing:', user);
+        return false;
+      }
+      
+      // Ensure createdDate exists (fix createdAt vs createdDate inconsistency)
+      if (!user.createdDate) {
+        user.createdDate = user.createdAt?.toISOString?.() || new Date().toISOString();
+      }
       
       // Ensure required properties exist
       if (!user.stats) {
@@ -1831,10 +2063,20 @@ class MathApp {
         user.exerciseHistory = [];
       }
       
+      // Ensure language and difficulty preferences exist
+      if (!user.language) {
+        user.language = this.currentLanguage || 'he';
+      }
+      
+      if (!user.difficultyPreference && !user.currentDifficulty) {
+        user.difficultyPreference = 'easy';
+        user.currentDifficulty = 'easy';
+      }
+      
       return true;
     });
     
-    console.log(`✅ Validated ${this.users.length} users`);
+    console.log(`✅ Validated ${this.users.length} users with proper data structures`);
   }
   
   handleStorageError(error) {
@@ -1848,38 +2090,48 @@ class MathApp {
   }
   
   showDataSavedIndicator() {
-    // Create a subtle indicator that data was saved
-    const indicator = document.createElement('div');
-    indicator.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: var(--color-success);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 12px;
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
-    `;
-    
-    const saveMessage = this.currentLanguage === 'he' ? 
-      '✅ הנתונים נשמרו' :
-      this.currentLanguage === 'ru' ?
-      '✅ Данные сохранены' :
-      '✅ Data saved';
+    try {
+      // Create a subtle indicator that data was saved
+      const indicator = document.createElement('div');
+      indicator.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--color-success);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+      `;
       
-    indicator.textContent = saveMessage;
-    document.body.appendChild(indicator);
-    
-    // Show and hide the indicator
-    setTimeout(() => indicator.style.opacity = '1', 100);
-    setTimeout(() => {
-      indicator.style.opacity = '0';
-      setTimeout(() => document.body.removeChild(indicator), 300);
-    }, 2000);
+      const saveMessage = this.currentLanguage === 'he' ? 
+        '✅ נתונים נשמרו בהצלחה' :
+        this.currentLanguage === 'ru' ?
+        '✅ Данные успешно сохранены' :
+        '✅ Data saved successfully';
+        
+      indicator.textContent = saveMessage;
+      document.body.appendChild(indicator);
+      
+      // Show and hide the indicator
+      setTimeout(() => indicator.style.opacity = '1', 100);
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          indicator.style.opacity = '0';
+          setTimeout(() => {
+            if (indicator.parentNode) {
+              document.body.removeChild(indicator);
+            }
+          }, 300);
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('⚠️ Error showing save indicator:', error);
+    }
   }
   
   showDataRestoredMessage() {
@@ -1930,16 +2182,21 @@ class MathApp {
   
   // Enhanced user creation with full data structure
   createUserWithFullStructure(name, avatar) {
+    console.log('Creating user structure for:', name, avatar);
+    
+    if (!name || !avatar) {
+      throw new Error('Name and avatar are required');
+    }
+    
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
     const today = this.getTodayString();
     
-    return {
+    const newUser = {
       id: userId,
       name: name,
       avatar: avatar,
-      createdAt: new Date(),
-      createdDate: now,
+      createdDate: now, // Use createdDate consistently, not createdAt
       language: this.currentLanguage,
       currentDifficulty: 'easy',
       statistics: {
@@ -1986,10 +2243,49 @@ class MathApp {
         theme: 'default'
       }
     };
+    
+    console.log('✅ User structure created successfully:', newUser);
+    return newUser;
   }
 }
 
 // Initialize the app when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-  new MathApp();
+  console.log('DOM Content Loaded - Starting Math App...');
+  
+  try {
+    window.mathApp = new MathApp();
+    console.log('Math App instance created successfully');
+  } catch (error) {
+    console.error('Fatal error creating Math App:', error);
+    
+    // Create a simple error display
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #f44336;
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 9999;
+      font-family: Arial, sans-serif;
+    `;
+    errorDiv.innerHTML = `
+      <h3>App Loading Error</h3>
+      <p>${error.message}</p>
+      <button onclick="location.reload()" style="
+        background: white;
+        color: #f44336;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      ">Reload Page</button>
+    `;
+    document.body.appendChild(errorDiv);
+  }
 });
